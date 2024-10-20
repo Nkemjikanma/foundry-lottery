@@ -7,9 +7,10 @@ pragma solidity ^0.8.28;
  * @notice This contract holds the logic for the raffle
  * @dev Implements chainlink VRF
  */
-
 contract Raffle {
-    /** Errors*/
+    /**
+     * Errors
+     */
     error Raffle__NotEnoughEntranceFee();
 
     uint256 private immutable i_entranceFee;
