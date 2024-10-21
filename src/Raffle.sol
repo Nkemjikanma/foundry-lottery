@@ -17,8 +17,9 @@ contract Raffle is VRFConsumerBaseV2Plus {
     error Raffle__NotEnoughEntranceFee();
     error Raffle_NotEnoughTime();
     error Raffle_TransferFailed();
-
+    error Raffle__RaffleNotOpen();
     /* State variables */
+
     uint256 private immutable i_entranceFee;
     uint256 private immutable i_interval; // the duration of the lottery in seconds
     address payable[] private s_players;
@@ -31,8 +32,19 @@ contract Raffle is VRFConsumerBaseV2Plus {
     uint32 private immutable i_callbackGasLimit; // max amount of gas willing to spend
     uint32 private constant NUM_WORDS = 1;
     bool private constant ENABLE_NATIVE_PAYMENT = true;
+
+    /* Type declarations */
+    enum RaffleState {
+        OPEN,
+        CALCULATING
+    }
+    // Enums can be used to create custom types with a finite set of constant values
+
+    RaffleState private s_raffleState;
+
     /* Events*/
     event RaffleEntered(address indexed player); // event emitted when a player enters the raffle
+    event WinnerPicked(address indexed player);
 
     constructor(
         uint256 entranceFee,
@@ -49,12 +61,15 @@ contract Raffle is VRFConsumerBaseV2Plus {
         i_keyHash = gasLane;
         i_subscriptionId = subscriptionId;
         i_callbackGasLimit = callbackGasLimit;
+        s_raffleState = RaffleState.OPEN;
     }
 
     function enterRaffle() external payable {
         // require(msg.value >= i_entranceFee, "Not enough entrace fee"); // Not gas efficient
         // require(msg.value >= i_entranceFee, NotEnoughEntranceFee()); // Newer but still not gas efficient
-
+        if (s_raffleState != RaffleState.OPEN) {
+            revert Raffle__RaffleNotOpen();
+        }
         if (msg.value < i_entranceFee) {
             revert Raffle__NotEnoughEntranceFee();
         }
@@ -72,36 +87,37 @@ contract Raffle is VRFConsumerBaseV2Plus {
             revert Raffle_NotEnoughTime();
         }
 
+        s_raffleState = RaffleState.CALCULATING;
+
         // get random number from chainlink VRF
         // This happens in 2 steps/transactions
         // 1. request a random number
-        VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient
-            .RandomWordsRequest({
-                keyHash: i_keyHash,
-                subId: i_subscriptionId,
-                requestConfirmations: REQUEST_CONFIRMATIONS,
-                callbackGasLimit: i_callbackGasLimit,
-                numWords: NUM_WORDS,
-                extraArgs: VRFV2PlusClient._argsToBytes(
-                    VRFV2PlusClient.ExtraArgsV1({
-                        nativePayment: ENABLE_NATIVE_PAYMENT
-                    })
-                )
-            });
+        VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient.RandomWordsRequest({
+            keyHash: i_keyHash,
+            subId: i_subscriptionId,
+            requestConfirmations: REQUEST_CONFIRMATIONS,
+            callbackGasLimit: i_callbackGasLimit,
+            numWords: NUM_WORDS,
+            extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: ENABLE_NATIVE_PAYMENT}))
+        });
 
         uint256 requestId = s_vrfCoordinator.requestRandomWords(request);
     }
 
     // fullfill the request for random number
-    function fulfillRandomWords(
-        uint256 requestId,
-        uint256[] calldata randomWords
-    ) internal override {
+    function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
         uint256 indexOfWinner = randomWords[0] % s_players.length;
         address payable recentWinner = s_players[indexOfWinner];
         s_recentWinner = recentWinner;
 
-        (bool success, ) = recentWinner.call{value: address(this).balance}("");
+        s_raffleState = RaffleState.OPEN; // open raffle state
+
+        s_players = new address payable[](0); // reset list of players
+        s_lastTimeStamp = block.timestamp; // change the time to current block time
+
+        emit WinnerPicked(s_recentWinner);
+
+        (bool success,) = recentWinner.call{value: address(this).balance}("");
         if (!success) {
             revert Raffle_TransferFailed();
         }
