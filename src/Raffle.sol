@@ -16,12 +16,14 @@ contract Raffle is VRFConsumerBaseV2Plus {
      */
     error Raffle__NotEnoughEntranceFee();
     error Raffle_NotEnoughTime();
+    error Raffle_TransferFailed();
 
     /* State variables */
     uint256 private immutable i_entranceFee;
     uint256 private immutable i_interval; // the duration of the lottery in seconds
     address payable[] private s_players;
     uint256 private s_lastTimeStamp; // the most recent b
+    address private s_recentWinner; // the last winner
 
     bytes32 private immutable i_keyHash; // price willing to pay for the request
     uint256 private immutable i_subscriptionId;
@@ -73,7 +75,6 @@ contract Raffle is VRFConsumerBaseV2Plus {
         // get random number from chainlink VRF
         // This happens in 2 steps/transactions
         // 1. request a random number
-
         VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient
             .RandomWordsRequest({
                 keyHash: i_keyHash,
@@ -95,7 +96,16 @@ contract Raffle is VRFConsumerBaseV2Plus {
     function fulfillRandomWords(
         uint256 requestId,
         uint256[] calldata randomWords
-    ) internal override {}
+    ) internal override {
+        uint256 indexOfWinner = randomWords[0] % s_players.length;
+        address payable recentWinner = s_players[indexOfWinner];
+        s_recentWinner = recentWinner;
+
+        (bool success, ) = recentWinner.call{value: address(this).balance}("");
+        if (!success) {
+            revert Raffle_TransferFailed();
+        }
+    }
 
     // Getter functions
     function getEntraceFee() external view returns (uint256) {
