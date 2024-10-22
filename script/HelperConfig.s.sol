@@ -14,7 +14,7 @@ abstract contract CodeConstants {
     uint96 public constant MOCK_GAS_PRICE_LINK = 1e9;
 
     // LINK / ETH price
-    uint256 public constant MOCK_WEI_PER_UNIT_LINK = 4e15;
+    int256 public constant MOCK_WEI_PER_UNIT_LINK = 4e15;
 }
 
 contract HelperConfig is Script, CodeConstants {
@@ -72,7 +72,7 @@ contract HelperConfig is Script, CodeConstants {
 
         // deploy mocks
         vm.startBroadcast();
-        VRFCordinatorV2_5Mock vrfcoordiantorMock = new VRFCoordinatorV2_5Mock(
+        VRFCoordinatorV2_5Mock vrfcoordiantorMock = new VRFCoordinatorV2_5Mock(
             MOCK_BASE_FEE,
             MOCK_GAS_PRICE_LINK,
             MOCK_WEI_PER_UNIT_LINK
