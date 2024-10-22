@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+import {AutomationCompatibleInterface} from "@chainlink/contracts/src/v0.8/automation/AutomationCompatible.sol";
 
 /**
  * @title Raffle smart contract
@@ -18,6 +19,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     error Raffle_NotEnoughTime();
     error Raffle_TransferFailed();
     error Raffle__RaffleNotOpen();
+    error Raffle__UpkeepNotNeeded(uint256 balance, uint256 players, uint256 raffleState);
     /* State variables */
 
     uint256 private immutable i_entranceFee;
@@ -81,7 +83,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // Get random number
     // use random number to pick winner
     // be automatically called
-    function pickWinner() external {
+    function pickWinner() internal {
         // get current time
         if (block.timestamp - s_lastTimeStamp < i_interval) {
             revert Raffle_NotEnoughTime();
@@ -101,7 +103,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
             extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: ENABLE_NATIVE_PAYMENT}))
         });
 
-        uint256 requestId = s_vrfCoordinator.requestRandomWords(request);
+        s_vrfCoordinator.requestRandomWords(request);
     }
 
     // fullfill the request for random number
@@ -121,6 +123,42 @@ contract Raffle is VRFConsumerBaseV2Plus {
         if (!success) {
             revert Raffle_TransferFailed();
         }
+    }
+
+    // /**
+    //  * @dev This is the function that chainlink nodes call to see if the lottery is ready to have a winner picked.
+    //  * The following need to be true for upkeepNeeded to be true:
+    //  * 1. The time interval has passed between interval runs.
+    //  * 2. The lottery is open
+    //  * 3. The contract has ETH
+    //  * 4. Our subscription has LINK
+    //  * @param
+    //  * @return upkeepNeeded
+    //  * @return
+    //  */
+    function checkUpKeep(bytes memory /* callData */ )
+        public
+        view
+        returns (bool upkeepNeeded, bytes memory /* performData */ )
+    {
+        bool timeHasPassed = ((block.timestamp - s_lastTimeStamp) >= i_interval);
+        bool isOpen = s_raffleState == RaffleState.OPEN;
+        bool hasBalance = address(this).balance > 0;
+        bool hasPlayers = s_players.length > 0;
+
+        upkeepNeeded = timeHasPassed && isOpen && hasBalance && hasPlayers;
+
+        return (upkeepNeeded, hex"");
+    }
+
+    function performUpkeep(bytes calldata /* performData */ ) external {
+        (bool upKeepNeeded,) = checkUpKeep("");
+
+        if (!upKeepNeeded) {
+            revert Raffle__UpkeepNotNeeded(address(this).balance, s_players.length, uint256(s_raffleState));
+        }
+
+        pickWinner();
     }
 
     // Getter functions
