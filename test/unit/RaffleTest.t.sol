@@ -11,6 +11,10 @@ contract RaffleTest is Test {
     Raffle public raffle;
     HelperConfig public helperConfig;
 
+    /* Events*/
+    event RaffleEntered(address indexed player); // event emitted when a player enters the raffle
+    event WinnerPicked(address indexed player);
+
     uint256 entranceFee;
     uint256 interval;
     address vrfCoordinator;
@@ -44,5 +48,33 @@ contract RaffleTest is Test {
 
     function testRaflleInitializesInOpenState() public view {
         assert(raffle.getRaffleState() == Raffle.RaffleState.OPEN);
+    }
+
+    // expect test to fail when user doesnt add enough entrance fee
+    function testRaffleRevertsWhenYouDontPayEnough() public {
+        vm.prank(PLAYER);
+
+        // expect test to fail with the actual error
+        vm.expectRevert(Raffle.Raffle__NotEnoughEntranceFee.selector);
+        raffle.enterRaffle();
+    }
+
+    function testRaffleRecordsPlayersWhenTheyEnter() public {
+        vm.prank(PLAYER);
+
+        raffle.enterRaffle{value: entranceFee}();
+
+        address playerRecorded = raffle.getPlayers(0);
+        assert(playerRecorded == PLAYER);
+    }
+
+    function testRaffleEmitsEvent() public {
+        vm.prank(PLAYER);
+
+        vm.expectEmit(true, false, false, false, address(raffle));
+
+        emit RaffleEntered(PLAYER);
+
+        raffle.enterRaffle{value: entranceFee}();
     }
 }
