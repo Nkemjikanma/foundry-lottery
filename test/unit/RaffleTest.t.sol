@@ -23,6 +23,7 @@ contract RaffleTest is Test {
     uint32 callbackGasLimit;
 
     address public PLAYER = makeAddr("player");
+    address public PLAYER2 = makeAddr("player2");
     uint256 public constant STARTING_PLAYER_BALANCE = 10 ether;
     uint256 public constant LINK_BALANCE = 100 ether;
 
@@ -75,6 +76,21 @@ contract RaffleTest is Test {
 
         emit RaffleEntered(PLAYER);
 
+        raffle.enterRaffle{value: entranceFee}();
+    }
+
+    function restrictUserWhileRaffleIsCalculating() public {
+        vm.prank(PLAYER);
+
+        raffle.enterRaffle{value: entranceFee}();
+        vm.warp(block.timestamp + interval + 1);
+        vm.roll(block.number + 1);
+
+        raffle.performUpkeep("");
+
+        vm.expectRevert(Raffle.Raffle__RaffleNotOpen.selector);
+
+        vm.prank(PLAYER);
         raffle.enterRaffle{value: entranceFee}();
     }
 }
