@@ -4,6 +4,12 @@ out = "out"
 libs = ["lib"]
 remappings = [
   '@chainlink/contracts/=lib/chainlink-brownie-contracts/contracts/',
+  '@solemate=lib/solemate/src'
+]
+# used in place of fftrue to let foundry access these folders from terminal
+fs_permissions = [
+    { access = "read", path = "./broadcast" },
+    { access = "read", path = "./reports" },
 ]
 ffi = true
 
