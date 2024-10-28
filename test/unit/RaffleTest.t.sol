@@ -100,7 +100,7 @@ contract RaffleTest is Test {
         vm.roll(block.number + 1);
 
         // act
-        (bool upkeepNeeded, ) = raffle.checkUpKeep("");
+        (bool upkeepNeeded,) = raffle.checkUpKeep("");
 
         // assert
         assert(!upkeepNeeded);
@@ -117,7 +117,7 @@ contract RaffleTest is Test {
         raffle.performUpkeep("");
 
         // act
-        (bool upkeepNeeded, ) = raffle.checkUpKeep("");
+        (bool upkeepNeeded,) = raffle.checkUpKeep("");
 
         //assert
         assert(!upkeepNeeded);
@@ -149,12 +149,7 @@ contract RaffleTest is Test {
 
         // act and assert
         vm.expectRevert(
-            abi.encodeWithSelector(
-                Raffle.Raffle__UpkeepNotNeeded.selector,
-                currentBalance,
-                numPlayers,
-                rState
-            )
+            abi.encodeWithSelector(Raffle.Raffle__UpkeepNotNeeded.selector, currentBalance, numPlayers, rState)
         );
         raffle.performUpkeep("");
     }
