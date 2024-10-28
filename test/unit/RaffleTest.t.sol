@@ -88,8 +88,8 @@ contract RaffleTest is Test {
 
         raffle.performUpkeep("");
 
+        // act and assert
         vm.expectRevert(Raffle.Raffle__RaffleNotOpen.selector);
-
         vm.prank(PLAYER);
         raffle.enterRaffle{value: entranceFee}();
     }
