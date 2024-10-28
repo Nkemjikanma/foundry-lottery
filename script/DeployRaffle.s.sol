@@ -16,7 +16,6 @@ contract DeployRaffle is Script {
 
         if (config.subscriptionId == 0) {
             // create interactions in interactions files
-
             CreateSubscription createSubscriptionContract = new CreateSubscription();
 
             (
