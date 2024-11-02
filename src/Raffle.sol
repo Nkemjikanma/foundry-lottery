@@ -47,6 +47,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     /* Events*/
     event RaffleEntered(address indexed player); // event emitted when a player enters the raffle
     event WinnerPicked(address indexed player);
+    event RequestedRaffleWinner(uint256 indexed requestId);
 
     constructor(
         uint256 entranceFee,
@@ -103,7 +104,10 @@ contract Raffle is VRFConsumerBaseV2Plus {
             extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: ENABLE_NATIVE_PAYMENT}))
         });
 
-        s_vrfCoordinator.requestRandomWords(request);
+        uint256 requestId = s_vrfCoordinator.requestRandomWords(request);
+
+        //
+        emit RequestedRaffleWinner(requestId);
     }
 
     // fullfill the request for random number
