@@ -19,11 +19,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     error Raffle_NotEnoughTime();
     error Raffle_TransferFailed();
     error Raffle__RaffleNotOpen();
-    error Raffle__UpkeepNotNeeded(
-        uint256 balance,
-        uint256 players,
-        uint256 raffleState
-    );
+    error Raffle__UpkeepNotNeeded(uint256 balance, uint256 players, uint256 raffleState);
     /* State variables */
 
     uint256 private immutable i_entranceFee;
@@ -99,19 +95,14 @@ contract Raffle is VRFConsumerBaseV2Plus {
         // get random number from chainlink VRF
         // This happens in 2 steps/transactions
         // 1. request a random number
-        VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient
-            .RandomWordsRequest({
-                keyHash: i_keyHash,
-                subId: i_subscriptionId,
-                requestConfirmations: REQUEST_CONFIRMATIONS,
-                callbackGasLimit: i_callbackGasLimit,
-                numWords: NUM_WORDS,
-                extraArgs: VRFV2PlusClient._argsToBytes(
-                    VRFV2PlusClient.ExtraArgsV1({
-                        nativePayment: ENABLE_NATIVE_PAYMENT
-                    })
-                )
-            });
+        VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient.RandomWordsRequest({
+            keyHash: i_keyHash,
+            subId: i_subscriptionId,
+            requestConfirmations: REQUEST_CONFIRMATIONS,
+            callbackGasLimit: i_callbackGasLimit,
+            numWords: NUM_WORDS,
+            extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: ENABLE_NATIVE_PAYMENT}))
+        });
 
         uint256 requestId = s_vrfCoordinator.requestRandomWords(request);
 
@@ -120,10 +111,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     }
 
     // fullfill the request for random number
-    function fulfillRandomWords(
-        uint256 requestId,
-        uint256[] calldata randomWords
-    ) internal override {
+    function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
         uint256 indexOfWinner = randomWords[0] % s_players.length;
         address payable recentWinner = s_players[indexOfWinner];
         s_recentWinner = recentWinner;
@@ -135,7 +123,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
 
         emit WinnerPicked(s_recentWinner);
 
-        (bool success, ) = recentWinner.call{value: address(this).balance}("");
+        (bool success,) = recentWinner.call{value: address(this).balance}("");
         if (!success) {
             revert Raffle_TransferFailed();
         }
@@ -152,11 +140,12 @@ contract Raffle is VRFConsumerBaseV2Plus {
     //  * @return upkeepNeeded
     //  * @return
     //  */
-    function checkUpKeep(
-        bytes memory /* callData */
-    ) public view returns (bool upkeepNeeded, bytes memory /* performData */) {
-        bool timeHasPassed = ((block.timestamp - s_lastTimeStamp) >=
-            i_interval);
+    function checkUpKeep(bytes memory /* callData */ )
+        public
+        view
+        returns (bool upkeepNeeded, bytes memory /* performData */ )
+    {
+        bool timeHasPassed = ((block.timestamp - s_lastTimeStamp) >= i_interval);
         bool isOpen = s_raffleState == RaffleState.OPEN;
         bool hasBalance = address(this).balance > 0;
         bool hasPlayers = s_players.length > 0;
@@ -166,15 +155,11 @@ contract Raffle is VRFConsumerBaseV2Plus {
         return (upkeepNeeded, hex"");
     }
 
-    function performUpkeep(bytes calldata /* performData */) external {
-        (bool upKeepNeeded, ) = checkUpKeep("");
+    function performUpkeep(bytes calldata /* performData */ ) external {
+        (bool upKeepNeeded,) = checkUpKeep("");
 
         if (!upKeepNeeded) {
-            revert Raffle__UpkeepNotNeeded(
-                address(this).balance,
-                s_players.length,
-                uint256(s_raffleState)
-            );
+            revert Raffle__UpkeepNotNeeded(address(this).balance, s_players.length, uint256(s_raffleState));
         }
 
         pickWinner();
