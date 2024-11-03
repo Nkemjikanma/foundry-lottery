@@ -7,6 +7,7 @@ import {Raffle} from "../../src/Raffle.sol";
 import {DeployRaffle} from "../../script/DeployRaffle.s.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {Vm} from "forge-std/Vm.sol";
+import {VRFCoordinatorV2_5Mock} from "@chainlink/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 
 contract RaffleTest is Test {
     Raffle public raffle;
@@ -106,24 +107,30 @@ contract RaffleTest is Test {
         vm.roll(block.number + 1);
 
         // act
-        (bool upkeepNeeded,) = raffle.checkUpKeep("");
+        (bool upkeepNeeded, ) = raffle.checkUpKeep("");
 
         // assert
         assert(!upkeepNeeded);
     }
 
-    function testCheckUpkeepRrturnsFalseIfRaffleIsNotOpen() public raffleEntered {
+    function testCheckUpkeepRrturnsFalseIfRaffleIsNotOpen()
+        public
+        raffleEntered
+    {
         raffle.performUpkeep("");
 
         // act
-        (bool upkeepNeeded,) = raffle.checkUpKeep("");
+        (bool upkeepNeeded, ) = raffle.checkUpKeep("");
 
         //assert
         assert(!upkeepNeeded);
     }
 
     /* Perform upkeep function */
-    function testPerformUpKeepCanOnlyRunIfCheckUpkeepIsTrue() public raffleEntered {
+    function testPerformUpKeepCanOnlyRunIfCheckUpkeepIsTrue()
+        public
+        raffleEntered
+    {
         // // Arrange
         // vm.prank(PLAYER);
 
@@ -148,12 +155,20 @@ contract RaffleTest is Test {
 
         // act and assert
         vm.expectRevert(
-            abi.encodeWithSelector(Raffle.Raffle__UpkeepNotNeeded.selector, currentBalance, numPlayers, rState)
+            abi.encodeWithSelector(
+                Raffle.Raffle__UpkeepNotNeeded.selector,
+                currentBalance,
+                numPlayers,
+                rState
+            )
         );
         raffle.performUpkeep("");
     }
 
-    function testPerformUpkeepUpdatesRaffleStateAndEmitsRequestId() public raffleEntered {
+    function testPerformUpkeepUpdatesRaffleStateAndEmitsRequestId()
+        public
+        raffleEntered
+    {
         // Act
         vm.recordLogs(); // records logs - foundry cheatcode
         raffle.performUpkeep("");
@@ -164,5 +179,18 @@ contract RaffleTest is Test {
         Raffle.RaffleState raffleState = raffle.getRaffleState();
         assert(uint256(requestId) > 0);
         assert(uint256(raffleState) == 1);
+    }
+
+    /* Fullfill reandom words */
+    // had to be called only after performUpkeep is called
+    // using stateless fuzz test
+    function testFullfillRandomWordsIsCalledAfterPerformUpkeep(
+        uint256 randomRequestId
+    ) public raffleEntered {
+        vm.expectRevert(VRFCoordinatorV2_5Mock.InvalidRequest.selector);
+        VRFCoordinatorV2_5Mock(vrfCoordinator).fulfillRandomWords(
+            randomRequestId,
+            address(raffle)
+        );
     }
 }
